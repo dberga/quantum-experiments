@@ -1,0 +1,9 @@
+python3 classification_hybridqnn.py --dataset "MNIST" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "0" "1" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "MNIST" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "1" "7" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "fish" "apple" --n_qubits 2 --shuffle --n_samples_train 200 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "bicycle" "motorcycle" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR10" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "cat" "dog" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "baby" "man" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "bottle" "bowl" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "butterfly" "bee" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
+python3 classification_hybridqnn.py --dataset "CIFAR100" --batch_size 1 --epochs 10 --n_classes 2 --specific_classes_names "forest" "sea" --n_qubits 2 --shuffle --n_samples_train 100 --n_samples_test 50;
