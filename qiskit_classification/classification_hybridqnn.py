@@ -1,5 +1,6 @@
 # Necessary imports
 import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -17,6 +18,9 @@ from qiskit_machine_learning.connectors import TorchConnector
 from qiskit.aqua.algorithms import QSVM
 from qiskit.aqua.components.multiclass_extensions import AllPairs
 from qiskit.aqua.utils.dataset_helper import get_feature_dimension
+
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from quantic.data import DatasetLoader
     
 # Additional torch-related imports
 from torch import no_grad, manual_seed
@@ -48,6 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--dataset", type=str, default="CIFAR10")
+    parser.add_argument("--dataset_cfg", type=str, default="")
     args = parser.parse_args()
 
     # network args
@@ -69,6 +74,7 @@ if __name__ == "__main__":
     specific_classes_names = args.specific_classes_names
     use_specific_classes = len(specific_classes_names)>=n_classes
     dataset = args.dataset
+    dataset_cfg = args.dataset_cfg
     print(specific_classes_names)
     
     # Set seed for random generators
@@ -83,60 +89,102 @@ if __name__ == "__main__":
     # Train Dataset
     # -------------
     
-    # Use pre-defined torchvision function to load train data
-    if dataset == "CIFAR100":
-        classes_list = ['apple', 'fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
-        X_train = datasets.CIFAR100(
-            root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-        X_test = datasets.CIFAR100(
-            root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-    elif dataset == "MNIST":
-        classes_list = ["0","1","2","3","4","5","6","7","8","9"]
-        X_train = datasets.MNIST(
-            root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-        X_test = datasets.MNIST(
-            root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-    elif dataset == "CIFAR10":
-        classes_list = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-        X_train = datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-        X_test = datasets.CIFAR10(
-            root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
-        )
-
-    # get conversion of identifiers for classes
-    dict_classes = { class_name : i for i,class_name in enumerate(classes_list)}
-    if not use_specific_classes:
-        specific_classes = range(0, n_classes)
-        specific_classes_names = list(map(str,specific_classes))
-        #specific_classes_names = [classes_list[idx] for idx in specific_classes] ## old 
+    if dataset_cfg:
+        # Load a dataset configuration file
+        dataset = DatasetLoader.load(from_cfg=dataset_cfg,framework='torchvision')
     else:
-        specific_classes = [dict_classes[i] for i in specific_classes_names]
+        # Or instantate dataset manually
+        dataset = DatasetLoader.load(dataset_type=dataset,
+                                       num_classes=n_classes,
+                                       specific_classes=specific_classes_names,
+                                       num_samples_class_train=n_samples_train,
+                                       num_samples_class_test=n_samples_test,
+                                       framework='torchvision'
+                                       )
+    print(f'Dataset partitions: {dataset.get_partitions()}')
 
-    classes_str = ",".join(specific_classes_names)
+    X_train = dataset['train']
+    X_test = dataset['test']
+
+    classes_str = ",".join(dataset.specific_classes_names)
     classes2spec = {}
+    specific_classes = dataset.specific_classes
     for idx, class_idx in enumerate(specific_classes):
         classes2spec[class_idx]=idx
 
-    # Filter out labels (originally 0-9), leaving only labels 0 and 1
-    X_train.targets=np.int64(X_train.targets)
+    classes_list = dataset.classes
+    n_samples = n_samples_test
 
-    n_samples = n_samples_train
-    idx = np.int64([])    
-    for i in range(0,n_classes):
-        class_idx = specific_classes[i]
-        idx = np.append(idx, np.where(X_train.targets == class_idx)[0][:n_samples])
+    # Previous dataset loading code
+    #
+    # # # Use pre-defined torchvision function to load train data
+    # # if dataset == "CIFAR100":
+    # #     classes_list = ['apple', 'fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
+    # #     X_train = datasets.CIFAR100(
+    # #         root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
+    # #     X_test = datasets.CIFAR100(
+    # #         root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
+    # # elif dataset == "MNIST":
+    # #     classes_list = ["0","1","2","3","4","5","6","7","8","9"]
+    # #     X_train = datasets.MNIST(
+    # #         root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
+    # #     X_test = datasets.MNIST(
+    # #         root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
+    # # elif dataset == "CIFAR10":
+    # #     classes_list = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+    # #     X_train = datasets.CIFAR10(
+    # #         root="./data", train=True, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
+    # #     X_test = datasets.CIFAR10(
+    # #         root="./data", train=False, download=True, transform=transforms.Compose([transforms.ToTensor()])
+    # #     )
 
-    X_train.data = X_train.data[idx]
-    X_train.targets = X_train.targets[idx]
+    # # # get conversion of identifiers for classes
+    # # dict_classes = { class_name : i for i,class_name in enumerate(classes_list)}
+    # # if not use_specific_classes:
+    # #     specific_classes = range(0, n_classes)
+    # #     specific_classes_names = list(map(str,specific_classes))
+    # #     #specific_classes_names = [classes_list[idx] for idx in specific_classes] ## old 
+    # # else:
+    # #     specific_classes = [dict_classes[i] for i in specific_classes_names]
 
-    # Define torch dataloader with filtered data
-    train_loader = DataLoader(X_train, batch_size=batch_size, shuffle=shuffle)
+    # # classes_str = ",".join(specific_classes_names)
+    # # classes2spec = {}
+    # # for idx, class_idx in enumerate(specific_classes):
+    # #     classes2spec[class_idx]=idx
+
+    # # # Filter out labels (originally 0-9), leaving only labels 0 and 1
+    # # X_train.targets=np.int64(X_train.targets)
+
+    # # n_samples = n_samples_train
+    # # idx = np.int64([])    
+    # # for i in range(0,n_classes):
+    # #     class_idx = specific_classes[i]
+    # #     idx = np.append(idx, np.where(X_train.targets == class_idx)[0][:n_samples])
+
+    # # X_train.data = X_train.data[idx]
+    # # X_train.targets = X_train.targets[idx]
+
+    # # # Test Dataset
+    # # # -------------
+
+    # # # Set test shuffle seed (for reproducibility)
+    # # # manual_seed(5)
+    # # n_samples = n_samples_test
+
+    # # # Filter out labels (originally 0-9), leaving only labels 0 and 1
+    # # X_test.targets=np.int64(X_test.targets)
+
+    # # idx = np.int64([])
+    # # for i in range(0,n_classes):
+    # #     class_idx = specific_classes[i]
+    # #     idx = np.append(idx, np.where(X_test.targets == class_idx)[0][:n_samples])
+    # # X_test.data = X_test.data[idx]
+    # # X_test.targets = X_test.targets[idx]
 
     # Get channels (rgb or grayscale)
     if len(X_train.data.shape)>3: # 3d image (rgb+)
@@ -146,23 +194,8 @@ if __name__ == "__main__":
         n_channels = 1
         n_filts = 256
 
-        # Test Dataset
-    # -------------
-
-    # Set test shuffle seed (for reproducibility)
-    # manual_seed(5)
-    n_samples = n_samples_test
-
-    # Filter out labels (originally 0-9), leaving only labels 0 and 1
-    X_test.targets=np.int64(X_test.targets)
-
-    idx = np.int64([])
-    for i in range(0,n_classes):
-        class_idx = specific_classes[i]
-        idx = np.append(idx, np.where(X_test.targets == class_idx)[0][:n_samples])
-    X_test.data = X_test.data[idx]
-    X_test.targets = X_test.targets[idx]
-
+    # Define torch dataloader with filtered data
+    train_loader = DataLoader(X_train, batch_size=batch_size, shuffle=shuffle)
     # Define torch dataloader with filtered data
     test_loader = DataLoader(X_test, batch_size=batch_size, shuffle=shuffle)
 
@@ -234,6 +267,7 @@ if __name__ == "__main__":
         for epoch in range(epochs):
             total_loss = []
             for batch_idx, (data, target) in enumerate(train_loader):
+
                 optimizer.zero_grad(set_to_none=True)  # Initialize gradient
                 output = model(data)  # Forward pass
 
