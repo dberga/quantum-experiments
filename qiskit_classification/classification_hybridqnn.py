@@ -1,14 +1,12 @@
 # Necessary imports
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
 from torch import Tensor
-from torch.nn import Linear, CrossEntropyLoss, MSELoss
-from torch.optim import LBFGS
 
-from qiskit import Aer, QuantumCircuit
+from qiskit import Aer, QuantumCircuit, BasicAer
 from qiskit.utils import QuantumInstance, algorithm_globals
 from qiskit.opflow import AerPauliExpectation
 from qiskit.circuit import Parameter
@@ -16,28 +14,20 @@ from qiskit.circuit.library import RealAmplitudes, ZZFeatureMap
 from qiskit_machine_learning.neural_networks import CircuitQNN, TwoLayerQNN
 from qiskit_machine_learning.connectors import TorchConnector
 
-import os
+from qiskit.aqua.algorithms import QSVM
+from qiskit.aqua.components.multiclass_extensions import AllPairs
+from qiskit.aqua.utils.dataset_helper import get_feature_dimension
     
 # Additional torch-related imports
-from torch import cat, no_grad, manual_seed
+from torch import no_grad, manual_seed
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-import torch.optim as optim
-from torch.nn import (
-    Module,
-    Conv2d,
-    Linear,
-    Dropout2d,
-    NLLLoss,
-    MaxPool2d,
-    Flatten,
-    Sequential,
-    ReLU,
-)
-import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 
+import torch.optim as optim # Adam, SGD, LBFGS
+from torch.nn import NLLLoss # CrossEntropyLoss, MSELoss
+from qnetworks import HybridQNN_Shallow
 
 if __name__ == "__main__":
     
@@ -48,6 +38,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_classes", type=int, default=2)
     parser.add_argument("--specific_classes_names", type=str, nargs="+", default=[]) # by default (empty) select first 10
     parser.add_argument("--n_qubits", type=int, default=2)
+    parser.add_argument("--n_features", type=int, default=None)
+    parser.add_argument("--network", type=str, default="hybridqnn_shallow")
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--n_samples_train", type=int, default=100) # 500 is max for cifar # Set -1 to use all
     parser.add_argument("--n_samples_test", type=int, default=50)
@@ -58,14 +50,21 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="CIFAR10")
     args = parser.parse_args()
 
+    # network args
+    n_classes = args.n_classes
+    n_qubits = args.n_qubits
+    n_features = args.n_features
+    if n_features is None:
+        n_features = n_qubits
+    network = args.network
+    # train args
     batch_size = args.batch_size
+    epochs = args.epochs
+    LR = args.lr
     n_samples_train = args.n_samples_train
     n_samples_test = args.n_samples_test
     n_samples_show = args.n_samples_show
-    n_classes = args.n_classes
-    n_qubits = args.n_qubits
-    epochs = args.epochs
-    LR = args.lr
+    # dataset args
     shuffle = args.shuffle
     specific_classes_names = args.specific_classes_names
     use_specific_classes = len(specific_classes_names)>=n_classes
@@ -186,135 +185,128 @@ if __name__ == "__main__":
         n_samples_show_alt -= 1
 
     ##### DESIGN NETWORK
-    # declare quantum instance
-    qi = QuantumInstance(Aer.get_backend("aer_simulator_statevector"))
 
-    # Define QNN
-    feature_map = ZZFeatureMap(n_qubits)
-    ansatz = RealAmplitudes(n_qubits, reps=1)
-    # REMEMBER TO SET input_gradients=True FOR ENABLING HYBRID GRADIENT BACKPROP
-    qnn = TwoLayerQNN(
-        n_qubits, feature_map, ansatz, input_gradients=True, exp_val=AerPauliExpectation(), quantum_instance=qi
-    )
-    print(qnn.operator)
-    qnn.circuit.draw(output="mpl",filename=f"plots/qnn{n_qubits}_{n_classes}classes.png")
-    #from qiskit.quantum_info import Statevector
-    #from qiskit.visualization import plot_bloch_multivector
-    #state = Statevector.from_instruction(qnn.circuit)
-    #plot_bloch_multivector(state)
+    if network == "hybridqnn_shallow":
+        # declare quantum instance
+        qi = QuantumInstance(Aer.get_backend("aer_simulator_statevector"))
+        # Define QNN
+        feature_map = ZZFeatureMap(n_features)
+        ansatz = RealAmplitudes(n_qubits, reps=1)
+        # REMEMBER TO SET input_gradients=True FOR ENABLING HYBRID GRADIENT BACKPROP
+        qnn = TwoLayerQNN(
+            n_qubits, feature_map, ansatz, input_gradients=True, exp_val=AerPauliExpectation(), quantum_instance=qi
+        )
+        print(qnn.operator)
+        qnn.circuit.draw(output="mpl",filename=f"plots/qnn{n_qubits}_{n_classes}classes.png")
+        #from qiskit.quantum_info import Statevector
+        #from qiskit.visualization import plot_bloch_multivector
+        #state = Statevector.from_instruction(qnn.circuit)
+        #plot_bloch_multivector(state)
+        model = HybridQNN_Shallow(n_classes = n_classes, n_qubits = n_qubits, n_channels = n_channels, n_filts = n_filts, qnn = qnn)
+        print(model)
+        
+        # Define model, optimizer, and loss function
+        optimizer = optim.Adam(model.parameters(), lr=LR)
+        loss_func = NLLLoss()
 
-    class Net(Module):
-        def __init__(self):
-            super().__init__()
-            self.conv1 = Conv2d(n_channels, 2, kernel_size=5)
-            self.conv2 = Conv2d(2, 16, kernel_size=5)
-            self.dropout = Dropout2d()
-            self.fc1 = Linear(n_filts, 64) # 256
-            self.fc2 = Linear(64,n_qubits)  # 2-dimensional input to QNN
-            self.qnn = TorchConnector(qnn)  # Apply torch connector, weights chosen
-            # uniformly at random from interval [-1,1].
-            if n_classes == 2:
-                self.fc3 = Linear(1, 1) # 1-dimensional output from QNN
-            else:
-                self.fc3 = Linear(1, n_classes)  
-        def forward(self, x):
-            x = F.relu(self.conv1(x))
-            x = F.max_pool2d(x, 2)
-            x = F.relu(self.conv2(x))
-            x = F.max_pool2d(x, 2)
-            x = self.dropout(x)
-            x = x.view(x.shape[0], -1)
-            x = F.relu(self.fc1(x))
-            x = self.fc2(x)
-            x = self.qnn(x)  # apply QNN
-            x = self.fc3(x)
-            if n_classes == 2:
-                return cat((x, 1 - x), -1)
-            else:
-                return x
-
-    model4 = Net()
-    print(model4)
-
-    # Define model, optimizer, and loss function
-    optimizer = optim.Adam(model4.parameters(), lr=LR)
-    loss_func = NLLLoss()
-
+    elif network == "QSVM":
+        backend = BasicAer.get_backend('qasm_simulator')
+        
+        # todo: fix this transformation for QSVM
+        train_input = X_train.targets
+        test_input = X_test.targets
+        total_array = np.concatenate([test_input[k] for k in test_input])
+        #
+        feature_map = ZZFeatureMap(feature_dimension=get_feature_dimension(train_input),
+                                   reps=2, entanglement='linear')
+        svm = QSVM(feature_map, train_input, test_input, total_array,
+                   multiclass_extension=AllPairs())
+        quantum_instance = QuantumInstance(backend, shots=1024,
+                                           seed_simulator=algorithm_globals.random_seed,
+                                           seed_transpiler=algorithm_globals.random_seed)
     ################# TRAIN
     # Start training
-    loss_list = []  # Store loss history
-    model4.train()  # Set model to training mode
-
-    for epoch in range(epochs):
-        total_loss = []
-        for batch_idx, (data, target) in enumerate(train_loader):
-            optimizer.zero_grad(set_to_none=True)  # Initialize gradient
-            output = model4(data)  # Forward pass
-
-            # change target class identifiers towards 0 to n_classes
-            for sample_idx, value in enumerate(target):
-                target[sample_idx]=classes2spec[target[sample_idx].item()]
-
-            loss = loss_func(output, target)  # Calculate loss
-            loss.backward()  # Backward pass
-            optimizer.step()  # Optimize weights
-            total_loss.append(loss.item())  # Store loss
-        loss_list.append(sum(total_loss) / len(total_loss))
-        print("Training [{:.0f}%]\tLoss: {:.4f}".format(100.0 * (epoch + 1) / epochs, loss_list[-1]))
-
-    # Plot loss convergence
-    plt.clf()
-    plt.plot(loss_list)
-    plt.title("Hybrid NN Training Convergence")
-    plt.xlabel("Training Iterations")
-    plt.ylabel("Neg. Log Likelihood Loss")
-    plt.savefig(f"plots/{dataset}_classification{classes_str}_hybridqnn_q{n_qubits}_{n_samples}samples_lr{LR}_bsize{batch_size}.png")
     
+    if network == "hybridqnn_shallow":
+        loss_list = []  # Store loss history
+        model.train()  # Set model to training mode
+
+        for epoch in range(epochs):
+            total_loss = []
+            for batch_idx, (data, target) in enumerate(train_loader):
+                optimizer.zero_grad(set_to_none=True)  # Initialize gradient
+                output = model(data)  # Forward pass
+
+                # change target class identifiers towards 0 to n_classes
+                for sample_idx, value in enumerate(target):
+                    target[sample_idx]=classes2spec[target[sample_idx].item()]
+
+                loss = loss_func(output, target)  # Calculate loss
+                loss.backward()  # Backward pass
+                optimizer.step()  # Optimize weights
+                total_loss.append(loss.item())  # Store loss
+            loss_list.append(sum(total_loss) / len(total_loss))
+            print("Training [{:.0f}%]\tLoss: {:.4f}".format(100.0 * (epoch + 1) / epochs, loss_list[-1]))
+
+        # Plot loss convergence
+        plt.clf()
+        plt.plot(loss_list)
+        plt.title("Hybrid NN Training Convergence")
+        plt.xlabel("Training Iterations")
+        plt.ylabel("Neg. Log Likelihood Loss")
+        plt.savefig(f"plots/{dataset}_classification{classes_str}_hybridqnn_q{n_qubits}_{n_samples}samples_lr{LR}_bsize{batch_size}.png")
+    
+    elif network == "QSVM":
+        result = svm.run(quantum_instance)
+        for k,v in result.items():
+            print(f'{k} : {v}')
+
     ######## TEST
-    model4.eval()  # set model to evaluation mode
-    with no_grad():
-        correct = 0
-        for batch_idx, (data, target) in enumerate(test_loader):
-            output = model4(data)
-            if len(output.shape) == 1:
-                output = output.reshape(1, *output.shape)
-            pred = output.argmax(dim=1, keepdim=True)
-
-            # change target class identifiers towards 0 to n_classes
-            for sample_idx, value in enumerate(target):
-                target[sample_idx]=classes2spec[target[sample_idx].item()]
-            
-            correct += pred.eq(target.view_as(pred)).sum().item()
-            loss = loss_func(output, target)
-            total_loss.append(loss.item())
-
-        print(
-            "Performance on test data:\n\tLoss: {:.4f}\n\tAccuracy: {:.1f}%".format(
-                sum(total_loss) / len(total_loss), correct / len(test_loader) / batch_size * 100
-            )
-        )
-
-    # Plot predicted labels
-    model4.eval()
-    with no_grad():
-        n_samples_show_alt = n_samples_show
-        while n_samples_show_alt > 0:
-            plt.clf()
-            count = 0
-            fig, axes = plt.subplots(nrows=1, ncols=n_samples_show*batch_size, figsize=(n_samples_show*2, batch_size*3))
-            for batch_idx, (data, target) in enumerate(test_loader):    
-                if count == n_samples_show:
-                    plt.savefig(f"plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_pred_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
-                    break
-                output = model4(data)
+    if network == "hybridqnn_shallow":
+        model.eval()  # set model to evaluation mode
+        with no_grad():
+            correct = 0
+            for batch_idx, (data, target) in enumerate(test_loader):
+                output = model(data)
                 if len(output.shape) == 1:
                     output = output.reshape(1, *output.shape)
                 pred = output.argmax(dim=1, keepdim=True)
-                for sample_idx in range(batch_size):
-                    class_label = classes_list[specific_classes[pred[sample_idx].item()]]
-                    axes[count].imshow(np.moveaxis(data[sample_idx].numpy().squeeze(),0,-1))
-                    axes[count].set_xticks([])
-                    axes[count].set_yticks([])
-                    axes[count].set_title(class_label)
-                    count += 1
-            n_samples_show_alt -= 1
+
+                # change target class identifiers towards 0 to n_classes
+                for sample_idx, value in enumerate(target):
+                    target[sample_idx]=classes2spec[target[sample_idx].item()]
+                
+                correct += pred.eq(target.view_as(pred)).sum().item()
+                loss = loss_func(output, target)
+                total_loss.append(loss.item())
+
+            print(
+                "Performance on test data:\n\tLoss: {:.4f}\n\tAccuracy: {:.1f}%".format(
+                    sum(total_loss) / len(total_loss), correct / len(test_loader) / batch_size * 100
+                )
+            )
+
+        # Plot predicted labels
+        model.eval()
+        with no_grad():
+            n_samples_show_alt = n_samples_show
+            while n_samples_show_alt > 0:
+                plt.clf()
+                count = 0
+                fig, axes = plt.subplots(nrows=1, ncols=n_samples_show*batch_size, figsize=(n_samples_show*2, batch_size*3))
+                for batch_idx, (data, target) in enumerate(test_loader):    
+                    if count == n_samples_show:
+                        plt.savefig(f"plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_pred_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
+                        break
+                    output = model(data)
+                    if len(output.shape) == 1:
+                        output = output.reshape(1, *output.shape)
+                    pred = output.argmax(dim=1, keepdim=True)
+                    for sample_idx in range(batch_size):
+                        class_label = classes_list[specific_classes[pred[sample_idx].item()]]
+                        axes[count].imshow(np.moveaxis(data[sample_idx].numpy().squeeze(),0,-1))
+                        axes[count].set_xticks([])
+                        axes[count].set_yticks([])
+                        axes[count].set_title(class_label)
+                        count += 1
+                n_samples_show_alt -= 1
