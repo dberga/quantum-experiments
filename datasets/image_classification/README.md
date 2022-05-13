@@ -13,18 +13,18 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 
 | Dataset                                                             | Description                                                                                        |
 | ---                                                                 | ---                                                                                                |
-| [mnist_0_1_small.json]([mnist_3_6_small.json)                       | Classify between digit "0" and "1". 100 images per class for training and 50 for testing.          |
-| [mnist_3_6_small.json]([mnist_3_6_small.json)                       | Classify between digit "3" and "6". 100 images per class for training and 50 for testing.          |
+| [mnist_0_1_small.json](mnist_3_6_small.json)                        | Classify between digit "0" and "1". 100 images per class for training and 50 for testing.          |
+| [mnist_3_6_small.json](mnist_3_6_small.json)                        | Classify between digit "3" and "6". 100 images per class for training and 50 for testing.          |
 
 
 ### Experiments
 
 | Dataset config                                                     | Method                                                          |  Accuracy |
 | ---                                                                | ---                                                             | ---       |
-| [mnist_0_1_small.json]([mnist_3_6_small.json)                      | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
-| [mnist_0_1_small.json]([mnist_3_6_small.json)                      | [QSVM](/)                                                       |    --- %  |
-| [mnist_3_6_small.json]([mnist_3_6_small.json)                      | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
-| [mnist_3_6_small.json]([mnist_3_6_small.json)                      | [QSVM](/)                                                       |    --- %  |
+| [mnist_0_1_small.json](mnist_3_6_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
+| [mnist_0_1_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    --- %  |
+| [mnist_3_6_small.json](mnist_3_6_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
+| [mnist_3_6_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    --- %  |
 
 ---
 
