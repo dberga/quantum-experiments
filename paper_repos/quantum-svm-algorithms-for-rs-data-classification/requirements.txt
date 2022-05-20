@@ -1,4 +1,5 @@
 spectral
 tifffile
 dwave-system
+dwave-ocean-sdk
 cvxpy
