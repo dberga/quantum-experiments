@@ -1,0 +1,8 @@
+qiskit
+qiskit-textbook
+qiskit-machine-learning
+qiskit-aqua
+qiskit-terra
+qiskit-aer
+qiskit-ignis
+qiskit-ibmq-provider

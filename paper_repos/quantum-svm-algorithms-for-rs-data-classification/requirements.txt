@@ -1,2 +1,4 @@
 spectral
 tifffile
+dwave-system
+cvxpy
