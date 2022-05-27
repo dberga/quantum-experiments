@@ -1,0 +1,7 @@
+{
+    "dataset_type": "MNIST",
+    "num_classes" : 2,
+    "specific_classes" : ["0","1"],
+    "num_samples_class_train": 100,
+    "num_samples_class_test" : 50
+}
