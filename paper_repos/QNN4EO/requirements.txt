@@ -1,0 +1,10 @@
+numpy
+matplotlib
+torch
+torchvision
+tensorflow
+jupyterlab
+scikit-learn
+seaborn
+qiskit==0.23.0
+git+https://github.com/qiskit-community/qiskit-textbook.git#subdirectory=qiskit-textbook-src
