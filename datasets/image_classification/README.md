@@ -28,7 +28,7 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 
 ---
 
-## CIFAR: Hand-written digit recognition
+## CIFAR: Image recognition
 
 Classification amongst 10 different categories (CIFAR-10) or between 100 categories (CIFAR-100)
 [[ref](https://www.cs.toronto.edu/~kriz/cifar.html)]
