@@ -22,9 +22,9 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 | Dataset config                                                     | Method                                                          |  Accuracy |
 | ---                                                                | ---                                                             | ---       |
 | [mnist_0_1_small.json](mnist_0_1_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
-| [mnist_0_1_small.json](mnist_0_1_small.json)                       | [QSVM](/)                                                       |    95 %  |
+| [mnist_0_1_small.json](mnist_0_1_small.json)                       | [QSVM](/)                                                       |    96 %  |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
-| [mnist_3_6_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    72 %  |
+| [mnist_3_6_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    90 %  |
 
 ---
 
@@ -44,4 +44,4 @@ Classification amongst 10 different categories (CIFAR-10) or between 100 categor
 | Dataset config                                                     | Method                                                          |  Accuracy |
 | ---                                                                | ---                                                             | ---       |
 | [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    50.0%  |
-| [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [QSVM](/)                                                       |    --- %  |
+| [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [QSVM](/)                                                       |    63 %  |
