@@ -15,7 +15,7 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 | ---                                                                 | ---                                                                                                |
 | [mnist_0_1_small.json](mnist_3_6_small.json)                        | Classify between digit "0" and "1". 100 images per class for training and 50 for testing.          |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                        | Classify between digit "3" and "6". 100 images per class for training and 50 for testing.          |
-
+| [mnist_0-9_medium.json](mnist_0-9_medium.json)                        | Classify between all digits. 500 images per class for training and 100 for testing.          |
 
 ### Experiments
 
@@ -25,7 +25,7 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 | [mnist_0_1_small.json](mnist_0_1_small.json)                       | [QSVM](/)                                                       |    96 %  |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    90 %  |
-
+| [mnist_0-9_medium.json](mnist_0-9_medium.json)                       | [QSVM](/)                                                       |    52.3 %  |
 ---
 
 ## CIFAR: Image recognition
