@@ -44,4 +44,4 @@ Classification amongst 10 different categories (CIFAR-10) or between 100 categor
 | Dataset config                                                     | Method                                                          |  Accuracy |
 | ---                                                                | ---                                                             | ---       |
 | [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    50.0%  |
-| [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [QSVM](/)                                                       |    63 %  |
+| [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [QSVM](/qiskit_classification/QSVM/Quantum_SVM_MNIST_airplane_dog.ipynb)                                                       |    63 %  |
