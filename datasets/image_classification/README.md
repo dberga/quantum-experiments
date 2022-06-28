@@ -25,7 +25,7 @@ Dataset with 10 numeric hand-written digit categories (0-9)
 | [mnist_0_1_small.json](mnist_0_1_small.json)                       | [QSVM](/)                                                       |    96 %  |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                       | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    100.%  |
 | [mnist_3_6_small.json](mnist_3_6_small.json)                       | [QSVM](/)                                                       |    90 %  |
-| [mnist_0-9_medium.json](mnist_0-9_medium.json)                       | [QSVM](/)                                                       |    52.3 %  |
+| [mnist_0-9_medium.json](mnist_0-9_medium.json)                       | [QSVM](/qiskit_classification/QSVM/Quantum_SVM_MNIST_digits_0_to_9.ipynb)                                                       |    52.3 %  |
 ---
 
 ## CIFAR: Image recognition
