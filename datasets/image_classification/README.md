@@ -38,6 +38,7 @@ Classification amongst 10 different categories (CIFAR-10) or between 100 categor
 | Dataset                                                             | Description                                                                                        |
 | ---                                                                 | ---                                                                                                |
 | [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json)  | Classify between digit "airplane" and "dog". 100 images per class for training and 50 for testing. |
+| [cifar10_dog_frog_horse_medium.json](cifar10_dog_frog_horse_medium.json)  | Classify between digit "dog", "frog" and "horse". 500 images per class for training and 100 for testing. |
 
 ### Experiments
 
@@ -45,3 +46,4 @@ Classification amongst 10 different categories (CIFAR-10) or between 100 categor
 | ---                                                                | ---                                                             | ---       |
 | [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [HybridQNN](/qiskit_classification/classification_hybridqnn.py) |    50.0%  |
 | [cifar10_airplane_dog_small.json](cifar10_airplane_dog_small.json) | [QSVM](/qiskit_classification/QSVM/Quantum_SVM_MNIST_airplane_dog.ipynb)                                                       |    63 %  |
+| [cifar10_dog_frog_horse_medium.json](cifar10_dog_frog_horse_medium.json) | [QSVM](/qiskit_classification/QSVM/Quantum_SVM_MNIST_dog_frog_horse.ipynb)                                                       |    50.6 %  |
