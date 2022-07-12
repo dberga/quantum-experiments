@@ -1,3 +1,6 @@
 qiskit_tutorials/data
 qiskit_tutorials/plots
 *.pyc
+qiskit_classification/QPU/output
+qiskit_classification/QPU/data
+**__pycache__
