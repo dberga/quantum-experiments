@@ -32,7 +32,7 @@ Using this format can take long time on big graphs with many depots and destinat
 
 It needs only a test file. You need to provide information about depots, destinations, vehicles and costs of travelling between depots and destinations. If you want to solve MDVRP (without capacities), you only need to provide depots' and destinations' ids, number of vehicles and costs. If you want to solve CMDVRP, you also need to provide destinations' weights and vehicles' capacities.
 
-Depots and destinations are enumerated with natural numbers. If you have n depots and m destinations, depots will have numbers 0, 1, 2, ..., n - 1 and destinations will have numbers n, n + 1, n + 2, ..., n + m - 1. You need to provide (n + m) x (n + m) matrix with costs. 
+Depots and destinations are enumerated with natural numbers. If you have n depots and m destinations, depots will have numbers 0, 1, 2, ..., n - 1 and destinations will have numbers n, n + 1, n + 2, ..., n + m - 1. You need to provide (n + m) x (n + m) matrix with  costs. 
 
 If you have a test file, you can use function 'read_test' (from input.py) to obtain VRPProblem object.
 
