@@ -33,6 +33,10 @@ import torch.optim as optim # Adam, SGD, LBFGS
 from torch.nn import NLLLoss # CrossEntropyLoss, MSELoss
 from qnetworks import HybridQNN_Shallow
 
+#time
+import timeit
+
+
 if __name__ == "__main__":
     
     # read args
@@ -85,6 +89,7 @@ if __name__ == "__main__":
         os.mkdir("plots")
 
     ######## PREPARE DATASETS
+    time_start = timeit.timeit()
 
     # Train Dataset
     # -------------
@@ -199,6 +204,10 @@ if __name__ == "__main__":
     # Define torch dataloader with filtered data
     test_loader = DataLoader(X_test, batch_size=batch_size, shuffle=shuffle)
 
+    time_end = timeit.timeit()
+    time_elapsed = time_end - time_start
+    print(f"Dataloaders elapsed time: {time_elapsed} s")
+
     ##### VISUALIZE LABELS
     data_iter = iter(train_loader)
     n_samples_show_alt = n_samples_show
@@ -218,6 +227,7 @@ if __name__ == "__main__":
         n_samples_show_alt -= 1
 
     ##### DESIGN NETWORK
+    time_start = timeit.timeit()
 
     if network == "hybridqnn_shallow":
         # declare quantum instance
@@ -257,9 +267,14 @@ if __name__ == "__main__":
         quantum_instance = QuantumInstance(backend, shots=1024,
                                            seed_simulator=algorithm_globals.random_seed,
                                            seed_transpiler=algorithm_globals.random_seed)
+
+    time_end = timeit.timeit()
+    time_elapsed = time_end - time_start
+    print(f"Network init elapsed time: {time_elapsed} s")
     ################# TRAIN
     # Start training
-    
+    time_start = timeit.timeit()
+
     if network == "hybridqnn_shallow":
         loss_list = []  # Store loss history
         model.train()  # Set model to training mode
@@ -295,7 +310,13 @@ if __name__ == "__main__":
         for k,v in result.items():
             print(f'{k} : {v}')
 
+    time_end = timeit.timeit()
+    time_elapsed = time_end - time_start
+    print(f"Training time: {time_elapsed} s")
+
     ######## TEST
+    time_start = timeit.timeit()
+
     if network == "hybridqnn_shallow":
         model.eval()  # set model to evaluation mode
         with no_grad():
@@ -320,6 +341,10 @@ if __name__ == "__main__":
                 )
             )
 
+        time_end = timeit.timeit()
+        time_elapsed = time_end - time_start
+        print(f"Test time: {time_elapsed} s")
+        
         # Plot predicted labels
         model.eval()
         with no_grad():
