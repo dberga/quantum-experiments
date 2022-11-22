@@ -54,7 +54,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_samples_show", type=int, default=6)
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--lr", type=float, default=0.001))
+    parser.add_argument("--input_res", type=int, default=28)
     parser.add_argument("--dataset", type=str, default="CIFAR10")
     parser.add_argument("--dataset_cfg", type=str, default="")
     args = parser.parse_args()
@@ -80,6 +81,9 @@ if __name__ == "__main__":
     dataset = args.dataset
     dataset_cfg = args.dataset_cfg
     print(specific_classes_names)
+    # preprocessing
+    input_resolution = (args.input_res,args.input_res) #(28,28) # please check n_filts required on fc1/fc2 to input to qnn
+    resize_interpolation = transforms.functional.InterpolationMode.BILINEAR 
     
     # Set seed for random generators
     algorithm_globals.random_seed = args.seed
@@ -89,28 +93,44 @@ if __name__ == "__main__":
         os.mkdir("plots")
 
     ######## PREPARE DATASETS
-    time_start = timeit.timeit()
+time_start = timeit.timeit()
 
-    # Train Dataset
-    # -------------
-    
-    if dataset_cfg:
-        # Load a dataset configuration file
-        dataset = DatasetLoader.load(from_cfg=dataset_cfg,framework='torchvision')
-    else:
-        # Or instantate dataset manually
-        dataset = DatasetLoader.load(dataset_type=dataset,
-                                       num_classes=n_classes,
-                                       specific_classes=specific_classes_names,
-                                       num_samples_class_train=n_samples_train,
-                                       num_samples_class_test=n_samples_test,
-                                       framework='torchvision'
-                                       )
+# Train Dataset
+# -------------
+
+if dataset_cfg:
+    # Load a dataset configuration file
+    dataset = DatasetLoader.load(from_cfg=dataset_cfg,framework='torchvision')
+else:
+    # Or instantate dataset manually
+    dataset = DatasetLoader.load(dataset_type=dataset,
+                                   num_classes=n_classes,
+                                   specific_classes=specific_classes_names,
+                                   num_samples_class_train=n_samples_train,
+                                   num_samples_class_test=n_samples_test,
+                                   framework='torchvision'
+                                   )
     print(f'Dataset partitions: {dataset.get_partitions()}')
 
     X_train = dataset['train']
     X_test = dataset['test']
 
+    # Get channels (rgb or grayscale)
+    if len(X_train.data.shape)>3: # 3d image (rgb+)
+        n_channels = X_train.data.shape[3]
+    else: # 2d image (grayscale)
+        n_channels = 1
+
+    # Set preprocessing transforms
+    list_preprocessing = [
+        transforms.Resize(input_resolution),
+        transforms.ToTensor(),
+        transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.size(0)==1 else x),
+    ] #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    X_train.transform= transforms.Compose(list_preprocessing)
+    X_test.transform = transforms.Compose(list_preprocessing)           
+
+    # set filtered/specific class names
     classes_str = ",".join(dataset.specific_classes_names)
     classes2spec = {}
     specific_classes = dataset.specific_classes
@@ -121,7 +141,7 @@ if __name__ == "__main__":
     n_samples = n_samples_test
 
     # Previous dataset loading code
-    #
+    '''
     # # # Use pre-defined torchvision function to load train data
     # # if dataset == "CIFAR100":
     # #     classes_list = ['apple', 'fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']
@@ -190,15 +210,8 @@ if __name__ == "__main__":
     # #     idx = np.append(idx, np.where(X_test.targets == class_idx)[0][:n_samples])
     # # X_test.data = X_test.data[idx]
     # # X_test.targets = X_test.targets[idx]
-
-    # Get channels (rgb or grayscale)
-    if len(X_train.data.shape)>3: # 3d image (rgb+)
-        n_channels = X_train.data.shape[3]
-        n_filts = 400
-    else: # 2d image (grayscale)
-        n_channels = 1
-        n_filts = 256
-
+    '''
+    
     # Define torch dataloader with filtered data
     train_loader = DataLoader(X_train, batch_size=batch_size, shuffle=shuffle)
     # Define torch dataloader with filtered data
@@ -212,24 +225,40 @@ if __name__ == "__main__":
     data_iter = iter(train_loader)
     n_samples_show_alt = n_samples_show
     while n_samples_show_alt > 0:
-        images, targets = data_iter.__next__()
+        try:
+            images, targets = data_iter.__next__()
+        except:
+            break
         plt.clf()
-        fig, axes = plt.subplots(nrows=1, ncols=n_samples_show, figsize=(n_samples_show*2, 3))
+        fig, axes = plt.subplots(nrows=1, ncols=n_samples_show, figsize=(n_samples_show*2, batch_size*3))
+        if n_samples_show == 1:
+            axes = [axes]
         for idx, image in enumerate(images):
             axes[idx].imshow(np.moveaxis(images[idx].numpy().squeeze(),0,-1))
             axes[idx].set_xticks([])
             axes[idx].set_yticks([])
             class_label = classes_list[targets[idx].item()]
             axes[idx].set_title("Labeled: {}".format(class_label))
-            if idx > n_samples_show:
-                plt.savefig(f"plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_labeled_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
+            if idx > n_samples_show: 
+                plt.savefig("plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_labeled_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
                 break
+        plt.show()
         n_samples_show_alt -= 1
+    
 
     ##### DESIGN NETWORK
     time_start = timeit.timeit()
 
+    # init network
     if network == "hybridqnn_shallow":
+        ## predefine number of input filters to fc1 and fc2
+        # examples: 13456 for (128x128x1), 59536 for (256x256x1), 256 for (28x28x1), 400 for (28x28x3) or (35x35x1) 
+        if n_channels == 1:
+            n_filts_fc1 = int(((((input_resolution[0]-4)/2)-4)/2)**2)*16
+        else:
+            n_filts_fc1 = int(((((input_resolution[0]+7-4)/2)-4)/2)**2)*16
+        n_filts_fc2 = int(n_filts_fc1 / 4)
+
         # declare quantum instance
         qi = QuantumInstance(Aer.get_backend("aer_simulator_statevector"))
         # Define QNN
@@ -245,16 +274,16 @@ if __name__ == "__main__":
         #from qiskit.visualization import plot_bloch_multivector
         #state = Statevector.from_instruction(qnn.circuit)
         #plot_bloch_multivector(state)
-        model = HybridQNN_Shallow(n_classes = n_classes, n_qubits = n_qubits, n_channels = n_channels, n_filts = n_filts, qnn = qnn)
+        model = HybridQNN_Shallow(n_classes = n_classes, n_qubits = n_qubits, n_channels = n_channels, n_filts_fc1 = n_filts_fc1, n_filts_fc2 = n_filts_fc2, qnn = qnn)
         print(model)
-        
+
         # Define model, optimizer, and loss function
         optimizer = optim.Adam(model.parameters(), lr=LR)
         loss_func = NLLLoss()
 
     elif network == "QSVM":
         backend = BasicAer.get_backend('qasm_simulator')
-        
+
         # todo: fix this transformation for QSVM
         train_input = X_train.targets
         test_input = X_test.targets
@@ -267,6 +296,11 @@ if __name__ == "__main__":
         quantum_instance = QuantumInstance(backend, shots=1024,
                                            seed_simulator=algorithm_globals.random_seed,
                                            seed_transpiler=algorithm_globals.random_seed)
+    else:
+        model = HybridQNN(backbone=network,pretrained=True,n_qubits=n_qubits,n_classes=n_classes)
+        # Define model, optimizer, and loss function
+        optimizer = optim.Adam(model.network.parameters(), lr=LR)
+        loss_func = NLLLoss()
 
     time_end = timeit.timeit()
     time_elapsed = time_end - time_start
@@ -275,10 +309,13 @@ if __name__ == "__main__":
     # Start training
     time_start = timeit.timeit()
 
-    if network == "hybridqnn_shallow":
-        loss_list = []  # Store loss history
-        model.train()  # Set model to training mode
+    if network != "QSVM":
+        if "vgg" in network or "resnet" in network:
+            model.network.train()  # Set model to training mode
+        if network == "hybridqnn_shallow":
+            model.train()  # Set model to training mode
 
+        loss_list = []  # Store loss history
         for epoch in range(epochs):
             total_loss = []
             for batch_idx, (data, target) in enumerate(train_loader):
@@ -294,6 +331,7 @@ if __name__ == "__main__":
                 loss.backward()  # Backward pass
                 optimizer.step()  # Optimize weights
                 total_loss.append(loss.item())  # Store loss
+                print(f"Batch {batch_idx}, Loss: {total_loss[-1]}")
             loss_list.append(sum(total_loss) / len(total_loss))
             print("Training [{:.0f}%]\tLoss: {:.4f}".format(100.0 * (epoch + 1) / epochs, loss_list[-1]))
 
@@ -304,7 +342,8 @@ if __name__ == "__main__":
         plt.xlabel("Training Iterations")
         plt.ylabel("Neg. Log Likelihood Loss")
         plt.savefig(f"plots/{dataset}_classification{classes_str}_hybridqnn_q{n_qubits}_{n_samples}samples_lr{LR}_bsize{batch_size}.png")
-    
+        plt.show()
+
     elif network == "QSVM":
         result = svm.run(quantum_instance)
         for k,v in result.items():
@@ -317,8 +356,11 @@ if __name__ == "__main__":
     ######## TEST
     time_start = timeit.timeit()
 
-    if network == "hybridqnn_shallow":
-        model.eval()  # set model to evaluation mode
+    if network != "QSVM":
+        if "vgg" in network or "resnet" in network:
+            model.network.eval()  # Set model to eval mode
+        if network == "hybridqnn_shallow":
+            model.eval()  # Set model to eval mode
         with no_grad():
             correct = 0
             for batch_idx, (data, target) in enumerate(test_loader):
@@ -330,7 +372,7 @@ if __name__ == "__main__":
                 # change target class identifiers towards 0 to n_classes
                 for sample_idx, value in enumerate(target):
                     target[sample_idx]=classes2spec[target[sample_idx].item()]
-                
+
                 correct += pred.eq(target.view_as(pred)).sum().item()
                 loss = loss_func(output, target)
                 total_loss.append(loss.item())
@@ -344,28 +386,32 @@ if __name__ == "__main__":
         time_end = timeit.timeit()
         time_elapsed = time_end - time_start
         print(f"Test time: {time_elapsed} s")
-        
+    
         # Plot predicted labels
-        model.eval()
-        with no_grad():
-            n_samples_show_alt = n_samples_show
-            while n_samples_show_alt > 0:
-                plt.clf()
-                count = 0
-                fig, axes = plt.subplots(nrows=1, ncols=n_samples_show*batch_size, figsize=(n_samples_show*2, batch_size*3))
-                for batch_idx, (data, target) in enumerate(test_loader):    
-                    if count == n_samples_show:
-                        plt.savefig(f"plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_pred_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
-                        break
-                    output = model(data)
-                    if len(output.shape) == 1:
-                        output = output.reshape(1, *output.shape)
-                    pred = output.argmax(dim=1, keepdim=True)
-                    for sample_idx in range(batch_size):
+        n_samples_show_alt = n_samples_show
+        while n_samples_show_alt > 0:
+            plt.clf()
+            count = 0
+            fig, axes = plt.subplots(nrows=1, ncols=n_samples_show, figsize=(n_samples_show*2, batch_size*3))
+            if n_samples_show == 1:
+                axes = [axes]
+            for batch_idx, (data, target) in enumerate(test_loader):    
+                if count == n_samples_show:
+                    plt.savefig(f"plots/{dataset}_classification{classes_str}_subplots{n_samples_show_alt}_lr{LR}_pred_q{n_qubits}_{n_samples}samples_bsize{batch_size}_{epochs}epoch.png")
+                    plt.show()
+                    break
+                output = model(data)
+                if len(output.shape) == 1:
+                    output = output.reshape(1, *output.shape)
+                pred = output.argmax(dim=1, keepdim=True)
+                for sample_idx in range(batch_size):
+                    try:
                         class_label = classes_list[specific_classes[pred[sample_idx].item()]]
-                        axes[count].imshow(np.moveaxis(data[sample_idx].numpy().squeeze(),0,-1))
-                        axes[count].set_xticks([])
-                        axes[count].set_yticks([])
-                        axes[count].set_title(class_label)
-                        count += 1
-                n_samples_show_alt -= 1
+                    except:
+                        class_label = classes_list[specific_classes[pred[sample_idx].item()-1]]
+                    axes[count].imshow(np.moveaxis(data[sample_idx].numpy().squeeze(),0,-1))
+                    axes[count].set_xticks([])
+                    axes[count].set_yticks([])
+                    axes[count].set_title(class_label)
+                    count += 1
+            n_samples_show_alt -= 1
