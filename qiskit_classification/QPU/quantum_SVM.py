@@ -99,7 +99,7 @@ def dwave_run_embedding(data,label,path_in,annealing_times,chain_strengths,em_id
                         sampler._fix_embedding(embedding_data)
                     print(f'running {pathsub} with {len(qubo_nodes)} nodes and {couplers} couplers for embedding {em_id}')
     
-                    ordering = np.array(list(BinaryQuadraticModel.from_qubo(Q)))
+                    ordering = np.array(BinaryQuadraticModel.from_qubo(Q).variables)
                     if not (ordering == np.arange(len(ordering),dtype=ordering.dtype)).all():
                         print(f'WARNING: variables are not correctly ordered! path={path} ordering={ordering}')
 
