@@ -8,7 +8,7 @@ from torch.nn import (
     Sequential,
     ReLU,
 )
-from torch import cat
+from torch import cat, clone
 import torch.nn.functional as F
 from qiskit_machine_learning.connectors import TorchConnector
 

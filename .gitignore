@@ -1,6 +1,10 @@
 qiskit_tutorials/data
 qiskit_tutorials/plots
 *.pyc
+qiskit_classification/data
+qiskit_classification/plots
 qiskit_classification/QPU/output
 qiskit_classification/QPU/data
+qiskit_classification/plots
+qiskit_classification/.ipynb_checkpoints
 **__pycache__
