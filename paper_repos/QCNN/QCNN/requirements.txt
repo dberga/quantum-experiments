@@ -1,0 +1,5 @@
+numpy
+scikit-learn
+protobuf==3.6.1
+tensorflow-gpu==2.6.2
+pennylane==0.12.0
