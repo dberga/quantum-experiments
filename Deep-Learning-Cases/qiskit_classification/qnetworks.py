@@ -12,6 +12,10 @@ from torch import cat, clone
 import torch.nn.functional as F
 from qiskit_machine_learning.connectors import TorchConnector
 
+
+#from qiskit_machine_learning.algorithms import VQC
+#vqc = VQC(feature_map=ZZFeatureMap(num_qubits), ansatz=RealAmplitudes(num_qubits, reps=1), loss='cross_entropy', optimizer=L_BFGS_B(), quantum_instance=QasmSimulator())
+
 class HybridQNN_Shallow(Module):
     def __init__(self,n_classes = 2, n_qubits = 2, n_channels = 3, n_filts_fc1 = 256, n_filts_fc2 = 64, qnn = None):
          
@@ -64,9 +68,14 @@ class HybridQNN(Module):
         super().__init__()
         
         # save main arguments from kwargs
+        if 'n_channels' in kwargs:
+            self.n_channels = kwargs['n_channels']
+        else:
+            self.n_channels = None
+            
         if 'n_classes' in kwargs:
             self.n_classes = kwargs['n_classes']
-            self.n_head_classes = self.n_classes - 1
+            self.n_head_classes = self.n_classes
         else:
             self.n_classes = 2
             self.n_head_classes = 1
@@ -81,6 +90,8 @@ class HybridQNN(Module):
             self.n_features = self.n_qubits
         
         # remove extra kwargs
+        if "n_channels" in kwargs:
+            del kwargs["n_channels"]
         if "n_classes" in kwargs:
             del kwargs["n_classes"]
         if "n_qubits" in kwargs:
@@ -104,6 +115,11 @@ class HybridQNN(Module):
         #print(self.qnn)
         # inject qnn right before head
         
+        # Redefine channels
+        if hasattr(self.network,'conv1'):
+            self.network.conv1 = Conv2d(in_channels=self.n_channels, out_channels=self.network.conv1.out_channels, kernel_size=self.network.conv1.kernel_size, stride=self.network.conv1.stride, padding=self.network.conv1.padding,bias=self.network.conv1.bias)
+        
+        # Redefine head
         if hasattr(self.network,'fc'): # HEAD = fc
             if type(self.network.fc) == Linear:
                 in_features = int(self.network.fc.in_features)
