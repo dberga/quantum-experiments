@@ -180,7 +180,7 @@ class HybridQNN(Module):
                                     Linear(in_features,self.n_features),TorchConnector(self.qnn), self.network[layer][sublayer]
                                 )
                             break
-        print(self.network)
+        # print(self.network)
         
     def forward(self, x):
         x = self.network(x)
